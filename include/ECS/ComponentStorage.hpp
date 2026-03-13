@@ -5,10 +5,9 @@
 #include "Debug/Debugger.hpp"
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <sys/types.h>
 #include <unordered_map>
-#include "vector"
-
 
 
 //Component Accessor 
@@ -98,8 +97,13 @@ struct ComponentStorage{
         const auto* smallest = &ComponentAccessor<typename std::tuple_element<0, std::tuple<Components...>>::type>::getEntityVector(this);
   
         const std::vector<const std::vector<Entity>*> vecPtrs{ &ComponentAccessor<Components>::getEntityVector(this)... };
-        for (const auto* vec : vecPtrs) {
-            if (vec->size() < smallest->size()) smallest = vec;
+        for(const auto* vec : vecPtrs) {
+            if(vec->size() < smallest->size()) smallest = vec;
+        }
+
+        if(smallest->size() <= 0){
+          DEBUGGER_LOG(ERROR, "No valid entities with given components!", "ECS");
+          return {std::numeric_limits<Entity>::min()}; //Error return
         }
 
         std::vector<Entity> result;
@@ -109,7 +113,6 @@ struct ComponentStorage{
           bool hasAllComponents = (... && (ComponentAccessor<Components>::getMap(this).count(e) > 0));
           if(hasAllComponents){result.push_back(e);}
         }
-
         return result;
     }
 

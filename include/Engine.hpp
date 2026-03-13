@@ -57,9 +57,8 @@ namespace Engine{
           EngineContext* currentContext = nullptr;
 
           EngineContext devContext;
-          EngineContext gameContext;
   
-          std::vector<EngineContext*> contexts = {&devContext, &gameContext}; //For looping over the engine contexts
+          std::vector<EngineContext*> contexts = {&devContext}; //For looping over the engine contexts
 
           bool hasContextChanged = false;
     };

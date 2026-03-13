@@ -34,10 +34,10 @@ namespace EngineInput{
     class Input{
         private:
             GLFWwindow* window;
-            static EngineContext* context;
+            static EngineContext** context;
 
         public:
-            void init(GLFWwindow* windowRef, EngineContext* engine_context);
+            void init(GLFWwindow* windowRef, EngineContext** engine_context);
 
             double xOffset = 0.0, yOffset = 0.0;
             double lastX = 0.0, lastY = 0.0;

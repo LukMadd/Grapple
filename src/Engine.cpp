@@ -9,6 +9,8 @@
 #include "ECS/EntityFunctions.hpp"
 #include "Physics/Raycast.hpp"
 #include "EngineGlobals.hpp"
+#include "Spatial/Spatial_Partitioner.hpp"
+#include <algorithm>
 #include <filesystem>
 
 using namespace EngineInput;
@@ -33,7 +35,10 @@ namespace Engine{
         newContext.isSetup = true;
       }
 
-      uiManager.setSceneManager(&newContext.sceneManager);
+      if(std::binary_search(contexts.begin(), contexts.end(), &newContext) == false){
+        contexts.push_back(&newContext);
+      }
+
       uiManager.setCameraManager(&newContext.sceneManager.getCurrentScene()->cameraManager);
 
       hasContextChanged = true;
@@ -61,6 +66,7 @@ namespace Engine{
 
       renderer.initObjectResources(resourceManager);
   
+      devContext.name = "Developer";
       switchContexts(devContext);
 
       window = renderer.window;
@@ -79,18 +85,17 @@ namespace Engine{
       uiInfo.instance = renderer.getInstance();
       uiInfo.pipelineCache = nullptr;
       uiInfo.renderPass = renderer.getRenderPass();
-      uiInfo.sceneManager = &currentContext->sceneManager;
       uiInfo.cameraManager = &currentContext->sceneManager.getScenes()[0]->cameraManager;
       uiInfo.recourseManager = &resourceManager;
       uiInfo.changedBoundingBoxes = &physicsEngine.getChangedBoundingBoxes();
-      uiInfo.context = currentContext;
+      uiInfo.context = &currentContext;
 
       uiManager.initImGui(uiInfo);
 
-      Input::get().init(window, currentContext);
+      Input::get().init(window, &currentContext);
       Input::get().setCallBacks();
       actionManager.setupDeveloperBindings();
-      physicsEngine.init(&spatialPartitioner, currentContext);
+      physicsEngine.init(&spatialPartitioner, &currentContext);
 
       renderer.giveDebugRenderer(&debugRenderer);
     }
@@ -100,7 +105,7 @@ namespace Engine{
         //Updates the binding if the camera has changed
         if(currentContext->sceneManager.getCurrentScene()->cameraManager.hasCameraChanged || hasContextChanged){
             auto bindings = InputBindings::getDeveloperBindings(currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera().get(), 
-                                                    renderer.window, &actionManager);
+                                                                 renderer.window, &actionManager);
             inputHandler.setBindings(bindings);
         }
     }
@@ -115,8 +120,6 @@ namespace Engine{
         currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->giveExtent(renderer.getSwapChainExtent());
 
         currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->updateCamera(deltaTime, actionManager);
-
-        currentContext->sceneManager.getCurrentScene()->update(&currentContext->ecs); //Updates the current frame's children with it's matrix and so forth
 
         static float rawFps = 0.0f;
         static float smoothFPS = 0.0f;
@@ -214,14 +217,15 @@ namespace Engine{
 
             float physicsStep = physicsEngine.getTickRate();
 
+            currentContext->sceneManager.getCurrentScene()->update(&currentContext->ecs); //Updates the current frame's children with it's matrix and so forth
+
             accumulator+=deltaTime;
             while(accumulator >= physicsStep){
                 physicsEngine.tick(physicsStep);
                 accumulator-=physicsEngine.getTickRate();
             }
-
-            RendererMainLoop(deltaTime); 
             
+            RendererMainLoop(deltaTime); 
         }
         vkDeviceWaitIdle(EngineRenderer::device);
     }

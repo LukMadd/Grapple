@@ -20,6 +20,10 @@ namespace EngineCamera{
 
             void checkIfCamerasEmpty();
 
+            void operator=(const CameraManager* other){
+              this->cameras = other->cameras;
+            }
+
             int currentID = 0;
 
         private:

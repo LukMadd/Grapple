@@ -15,11 +15,10 @@ namespace EngineUI{
         VkPipelineCache pipelineCache;
         VkDescriptorPool imGuiDescriptorPool;
         VkRenderPass renderPass;
-        EngineScene::SceneManager *sceneManager;
         EngineCamera::CameraManager *cameraManager;
         EngineResource::ResourceManager *recourseManager;
         std::vector<Entity>* changedBoundingBoxes;
-        EngineContext* context = nullptr;
+        EngineContext** context = nullptr;
     };
 
     class UIManager{
@@ -35,7 +34,6 @@ namespace EngineUI{
 
             bool shouldDrawBoundingBoxes(){return engineUI.getValueofDrawBoundingBoxes();}
 
-            void setSceneManager(EngineScene::SceneManager *sceneManager){uiInfo.sceneManager = sceneManager;}
             void setCameraManager(EngineCamera::CameraManager *cameraManager){uiInfo.cameraManager = cameraManager;}
 
             private:

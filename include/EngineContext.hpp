@@ -3,27 +3,26 @@
 
 #include "Scene/SceneManager.hpp"
 #include "ECS/ECS.hpp"
+#include <stdexcept>
 
 using namespace EngineScene;
 
 struct EngineContext{
   EngineContext() : sceneManager(){};
 
-  EngineContext& operator=(EngineContext& other){
-    if(this == &other){
-      return *this;
+  void copyState(const EngineContext& otherContext){
+    sceneManager = otherContext.sceneManager;
+    assert(sceneManager.getCurrentScene());
+    ecs.setComponentStorage(&sceneManager.getCurrentScene()->componentStorage);
+    if(ecs.getComponentStorage() == nullptr){
+      throw std::runtime_error("COMPONENT STORAGE NOT SET\n");
     }
-
-    sceneManager = std::move(other.sceneManager);
-
-    ecs.setComponentStorage(other.ecs.getComponentStorage());
-
-    return *this;
   }
 
   SceneManager sceneManager;
   ECS ecs;
 
+  std::string name;
   bool isSetup = false;
 };
 

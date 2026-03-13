@@ -8,7 +8,7 @@ namespace EnginePhysics{
     class PhysicsEngine{
         public:
             void init(EnginePartitioning::Spatial_Partitioner *spatialPartitioner,
-                      EngineContext* engineContext);
+                      EngineContext** engineContext);
 
             void tick(float deltaTime);
 
@@ -29,7 +29,7 @@ namespace EnginePhysics{
 
             EnginePartitioning::Spatial_Partitioner *spatialPartitioner;
 
-            EngineContext* context;
+            EngineContext** context = nullptr;
 
             std::vector<Entity> changedBoundingBoxes;
     };

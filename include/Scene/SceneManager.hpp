@@ -54,7 +54,7 @@ namespace EngineScene{
               //Deep copies scenes, some scene managers may have to be revisited at some point
               //so moving it is not an option
               for(auto& [id, scene] : other.scenes){
-                this->scenes[id] = std::unique_ptr<Scene>(scene.get());
+                this->scenes[id] = std::make_unique<Scene>(*scene);
               }
 
               return *this;

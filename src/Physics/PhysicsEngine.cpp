@@ -18,7 +18,7 @@ using namespace EnginePartitioning;
 
 namespace EnginePhysics{
     void PhysicsEngine::init(EnginePartitioning::Spatial_Partitioner *spatialPartitioner,
-                             EngineContext* engineContext){
+                             EngineContext** engineContext){
         this->spatialPartitioner = spatialPartitioner;
         this->context = engineContext;
     }
@@ -31,12 +31,12 @@ namespace EnginePhysics{
             spatialPartitioner->updateEntityCells(changedBoundingBox);
         }
 
-        for(auto entity : context->ecs.view<TransformComponent, BoundingBoxComponent, PhysicsComponent, SpatialPartitioningComponent>()){
-            auto* transform = context->ecs.getComponent<TransformComponent>(entity);
-            auto* boundingBox = context->ecs.getComponent<BoundingBoxComponent>(entity);
-            auto* physics = context->ecs.getComponent<PhysicsComponent>(entity);
-            auto* spatial = context->ecs.getComponent<SpatialPartitioningComponent>(entity);
-            auto* metadata = context->ecs.getComponent<MetadataComponent>(entity);
+        for(auto entity : (*context)->ecs.view<TransformComponent, BoundingBoxComponent, PhysicsComponent, SpatialPartitioningComponent>()){
+            auto* transform = (*context)->ecs.getComponent<TransformComponent>(entity);
+            auto* boundingBox = (*context)->ecs.getComponent<BoundingBoxComponent>(entity);
+            auto* physics = (*context)->ecs.getComponent<PhysicsComponent>(entity);
+            auto* spatial = (*context)->ecs.getComponent<SpatialPartitioningComponent>(entity);
+            auto* metadata = (*context)->ecs.getComponent<MetadataComponent>(entity);
 
             if(!physics->isStatic){
                 //Applies gravity
@@ -58,11 +58,12 @@ namespace EnginePhysics{
             std::vector<Cell*> cells = spatialPartitioner->getCells(entity);
             for(int i = 0; i < cells.size(); i++){
                 for(auto other : cells[i]->entities){
+
                     if(entity == other) continue;
+                                        
+                    BoundingBoxComponent otherBoundingBox = *(*context)->ecs.getComponent<BoundingBoxComponent>(other);
 
-                    BoundingBoxComponent otherBoundingBox = *context->ecs.getComponent<BoundingBoxComponent>(other);
-
-                    std::pair<std::string, std::string> dirKey{metadata->uuid, context->ecs.getComponent<MetadataComponent>(other)->uuid};
+                    std::pair<std::string, std::string> dirKey{metadata->uuid, (*context)->ecs.getComponent<MetadataComponent>(other)->uuid};
                     if(!checkedPairs.insert(dirKey).second) continue;
 
                     float epsilon = 0.0000001f;
@@ -71,13 +72,14 @@ namespace EnginePhysics{
                     if(collisionDirection != OBJECT_COLLISION_NONE){
                         handleCollision(predictedBox, otherBoundingBox.worldBoundingBox, physics->velocity, 
                                       movement, currentMins, currentMaxes, collisionDirection, epsilon);
+                    } else{
                     }
 
                 }
             } 
         newPos += glm::vec3(movement.x, movement.y, movement.z);
         if(newPos != transform->position && !physics->isStatic){
-          EntityFunctions::move(newPos, entity, &context->ecs);
+          EntityFunctions::move(newPos, entity, &(*context)->ecs);
         }
         }
     }

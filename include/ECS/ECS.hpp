@@ -7,6 +7,7 @@
 #include "Components.hpp"
 #include "ComponentStorage.hpp"
 #include "EntityFunctions.hpp"
+#include <iostream>
 
 #define DebugSystem "ECS";
 
@@ -66,6 +67,9 @@ struct ECS{
 
     template<typename... Components>
     std::vector<Entity> view(){
+        if(!componentStorage){
+          throw std::runtime_error("NO COMPONENT STORAGE!!!");
+        }
         if constexpr (sizeof...(Components) == 1) {
             uint32_t hash = (componentStorage->getHash<Components>() | ...);
             auto it = componentStorage->componentMap.find(hash);
@@ -101,8 +105,10 @@ struct ECS{
     uint32_t getAvailableEntityID(){
         uint32_t entityID;
         if(!availableIDs.empty()){
-            entityID = availableIDs[0];
+          std::cout << "AVAILABLE" << std::endl;   
+          entityID = availableIDs[0];
         } else{
+            std::cout << "NOT AVAILABLE" << std::endl;
             entityID = componentStorage->nextEntity;
             componentStorage->nextEntity++;
         }

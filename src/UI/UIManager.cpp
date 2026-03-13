@@ -16,8 +16,8 @@ namespace EngineUI{
     //Initializes ImGui
     void UIManager::initImGui(UIInfo &uiInfoRef){
         uiInfo = uiInfoRef;
-        if(!uiInfo.sceneManager){
-            throw std::runtime_error("INVALID SCENE MANAGER");
+        if(!*uiInfo.context){
+            throw std::runtime_error("INVALID CONTEXT");
         }
         engineUI.setSelectedCamera(uiInfo.cameraManager->getCurrentCamera().get());
 
@@ -143,14 +143,14 @@ namespace EngineUI{
         if(uiInfo.context == nullptr){
             DEBUGGER_LOG(ERROR, "UI Context is null!", DEBUG_SYSTEM);
         }
-        engineUI.drawMainLayout(uiInfo.sceneManager, uiInfo.cameraManager, &uiInfo.context->ecs);
-        engineUI.drawSceneHierarchy(uiInfo.sceneManager->getCurrentScene(), &uiInfo.context->ecs);
-        engineUI.drawEntityInspector(uiInfo.sceneManager->getCurrentScene(), *uiInfo.changedBoundingBoxes,&uiInfo.context->ecs);
+        engineUI.drawMainLayout(&(*uiInfo.context)->sceneManager, uiInfo.cameraManager, &(*uiInfo.context)->ecs);
+        engineUI.drawSceneHierarchy((*uiInfo.context)->sceneManager.getCurrentScene(), &(*uiInfo.context)->ecs);
+        engineUI.drawEntityInspector((*uiInfo.context)->sceneManager.getCurrentScene(), *uiInfo.changedBoundingBoxes,&(*uiInfo.context)->ecs);
         engineUI.drawCameraInspector();
         engineUI.drawRecourses(uiInfo.recourseManager);
-        engineUI.drawRenderStats(uiInfo.sceneManager->getCurrentScene() ,fps, &uiInfo.context->ecs);
-        engineUI.drawScenes(uiInfo.sceneManager);
-        engineUI.drawSceneInspector(uiInfo.sceneManager, &uiInfo.context->ecs);
+        engineUI.drawRenderStats((*uiInfo.context)->sceneManager.getCurrentScene() ,fps, &(*uiInfo.context)->ecs);
+        engineUI.drawScenes(&(*uiInfo.context)->sceneManager);
+        engineUI.drawSceneInspector(&(*uiInfo.context)->sceneManager, &(*uiInfo.context)->ecs);
 
         ImGui::End();
         ImGui::PopStyleVar(2);

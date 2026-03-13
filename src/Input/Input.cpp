@@ -16,12 +16,12 @@ namespace EngineInput{
     EngineCamera::Camera* Input::inputCamera = nullptr;
     Entity Input::selectedEntity = nullEntity;
     EngineScene::Scene* Input::inputScene = nullptr;
-    EngineContext* Input::context = nullptr;
+    EngineContext** Input::context = nullptr;
 
     std::unordered_map<int, bool> Input::keyStates;
     std::unordered_map<int, bool> Input::mouseButtonStates;
 
-    void Input::init(GLFWwindow* windowRef, EngineContext* engine_context){
+    void Input::init(GLFWwindow* windowRef, EngineContext** engine_context){
         window = windowRef;
         context = engine_context;
     }
@@ -56,10 +56,10 @@ namespace EngineInput{
         float closestDistance = FLT_MAX;
         const float MAX_DISTANCE = 100.0f;
 
-        for(auto& entity : context->ecs.view<RenderableComponent, BoundingBoxComponent, MetadataComponent>()){
-            auto* boundingBox = context->ecs.getComponent<BoundingBoxComponent>(entity);
-            auto* metadata = context->ecs.getComponent<MetadataComponent>(entity);
-            auto* selected_metadata = context->ecs.getComponent<MetadataComponent>(selectedEntity);
+        for(auto& entity : (*context)->ecs.view<RenderableComponent, BoundingBoxComponent, MetadataComponent>()){
+            auto* boundingBox = (*context)->ecs.getComponent<BoundingBoxComponent>(entity);
+            auto* metadata = (*context)->ecs.getComponent<MetadataComponent>(entity);
+            auto* selected_metadata = (*context)->ecs.getComponent<MetadataComponent>(selectedEntity);
            
             float t;
             glm::vec3 worldMin = boundingBox->worldBoundingBox.min;

@@ -63,8 +63,6 @@ namespace EngineRenderer {
             std::vector<VkDeviceMemory> objectUniformBuffersMemory;
             std::vector<void*> objectUniformBuffersMapped;
 
-            std::vector<VkDescriptorSet> descriptorSets;
-
             VkDeviceSize objectUboStride;
 
             Command appCommand;
