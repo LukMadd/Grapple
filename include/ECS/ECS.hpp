@@ -2,12 +2,14 @@
 #define ECS_HPP
 
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
 #include <sys/types.h>
 #include <vector>
 #include "Components.hpp"
 #include "ComponentStorage.hpp"
+#include "Debug/Debugger.hpp"
 #include "EntityFunctions.hpp"
-#include <iostream>
 
 #define DebugSystem "ECS";
 
@@ -25,16 +27,7 @@ struct ECS{
         componentStorage->entities.erase(std::remove(componentStorage->entities.begin(), componentStorage->entities.end(), e), 
                                                      componentStorage->entities.end());
 
-        //There is definetly a better way to do this, I just don't know what it is
-        if(hasComponent<TransformComponent>(e)) componentStorage->removeComponent<TransformComponent>(e);
-        if(hasComponent<MeshComponent>(e)) componentStorage->removeComponent<MeshComponent>(e);
-        if(hasComponent<MaterialComponent>(e)) componentStorage->removeComponent<MaterialComponent>(e);
-        if(hasComponent<PhysicsComponent>(e)) componentStorage->removeComponent<PhysicsComponent>(e);
-        if(hasComponent<BoundingBoxComponent>(e)) componentStorage->removeComponent<BoundingBoxComponent>(e);
-        if(hasComponent<SpatialPartitioningComponent>(e)) componentStorage->removeComponent<SpatialPartitioningComponent>(e);
-        if(hasComponent<RenderableComponent>(e)) componentStorage->removeComponent<RenderableComponent>(e);
-        if(hasComponent<SceneNodeComponent>(e)) componentStorage->removeComponent<SceneNodeComponent>(e);
-        if(hasComponent<MetadataComponent>(e)) componentStorage->removeComponent<MetadataComponent>(e);
+        componentStorage->removeEntity(e);
     }
 
     template<typename... Components>
@@ -44,14 +37,14 @@ struct ECS{
 
     template<typename Component>
     Component* getComponent(Entity e){
-        auto& vec = ComponentAccessor<Component>::getVector(componentStorage);
-        auto& map = ComponentAccessor<Component>::getMap(componentStorage);
-        
-        auto it = map.find(e);
-        if(it != map.end()){
-            return &vec.at(it->second);
+        auto& vec = componentStorage->component_map.get_components<Component>();
+        size_t indice = componentStorage->indices.get_component_indice<Component>(e);
+       
+        if(indice == std::numeric_limits<size_t>::max() || indice >= vec.size()){
+          DEBUGGER_LOG(CRITICAL, "Invalid indice!", "ECS");
+           return nullptr;
         }
-        return nullptr;
+        return &vec.at(indice);
     }
 
     template<typename... Components>
@@ -59,10 +52,10 @@ struct ECS{
         return std::tie(getComponent<Components>(e)...);
     }
 
-    template<typename T>
+    template<typename Component>
     bool hasComponent(Entity e){
-        auto& map = componentStorage->getIndices<T>();
-        return map.find(e) != map.end();
+        auto& indices = componentStorage->indices.get_component_indice_map<Component>();
+        return indices.find(e) != indices.end();
     }
 
     template<typename... Components>
@@ -71,13 +64,7 @@ struct ECS{
           throw std::runtime_error("NO COMPONENT STORAGE!!!");
         }
         if constexpr (sizeof...(Components) == 1) {
-            uint32_t hash = (componentStorage->getHash<Components>() | ...);
-            auto it = componentStorage->componentMap.find(hash);
-            if(it != componentStorage->componentMap.end()){
-                return it->second;
-            } else{
-                return {};
-            }
+            return componentStorage->entity_component_map.get_entities_of_type<Components...>();
         } else {
             return componentStorage->getEntitiesWith<Components...>();
         }
@@ -105,10 +92,8 @@ struct ECS{
     uint32_t getAvailableEntityID(){
         uint32_t entityID;
         if(!availableIDs.empty()){
-          std::cout << "AVAILABLE" << std::endl;   
           entityID = availableIDs[0];
         } else{
-            std::cout << "NOT AVAILABLE" << std::endl;
             entityID = componentStorage->nextEntity;
             componentStorage->nextEntity++;
         }
