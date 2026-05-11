@@ -4,6 +4,8 @@
 
 #include "Spatial/Spatial_Partitioner.hpp"
 
+constexpr float GRAVITY_SCALE = 0.125f;
+
 namespace EnginePhysics{
     class PhysicsEngine{
         public:
@@ -23,7 +25,7 @@ namespace EnginePhysics{
 
             const float tickRate = 16.66666667 / 1000.0f; //60 updates a second
 
-            const glm::vec3 gravity = glm::vec3(0.0, -9.81, 0.0); //Goes down 1/10 unit a tick
+            const glm::vec3 gravity = glm::vec3(0.0, -9.81 * GRAVITY_SCALE, 0.0); //Goes down 1/10 unit a tick
 
             uint64_t tickCount = 0;
 

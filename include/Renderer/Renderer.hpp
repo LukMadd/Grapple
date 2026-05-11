@@ -83,8 +83,6 @@ namespace EngineRenderer {
 
                 void initVulkan();
                 void initObjectResources(EngineResource::ResourceManager &resourceManager);
-                void initEntities(Scene &scene, EngineResource::ResourceManager &resourceManager, 
-                                 EnginePartitioning::Spatial_Partitioner &SpatialPartitioner, ECS* ecs);
                 void cleanup();
                 void drawFrame(Scene *scene, ECS* ecs, FrameFlags frameFlags);
                 void createSceneDescriptorSets(Scene *scene, ECS* ecs);

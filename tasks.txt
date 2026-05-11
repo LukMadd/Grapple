@@ -9,6 +9,7 @@ Future things:
 Completed Tasks:
     - Move serialization code to a separate folder
     - Add render stats
+    - Switch to swept physics
     - Add the ability to add objects to a scene
     - Add spatial partitioning
     - Make it so objects can have different shaders

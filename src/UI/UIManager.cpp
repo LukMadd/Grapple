@@ -145,7 +145,7 @@ namespace EngineUI{
         }
         engineUI.drawMainLayout(&(*uiInfo.context)->sceneManager, uiInfo.cameraManager, &(*uiInfo.context)->ecs);
         engineUI.drawSceneHierarchy((*uiInfo.context)->sceneManager.getCurrentScene(), &(*uiInfo.context)->ecs);
-        engineUI.drawEntityInspector((*uiInfo.context)->sceneManager.getCurrentScene(), *uiInfo.changedBoundingBoxes,&(*uiInfo.context)->ecs);
+        engineUI.drawEntityInspector((*uiInfo.context)->sceneManager.getCurrentScene(), &(*uiInfo.context)->ecs, uiInfo.spatial);
         engineUI.drawCameraInspector();
         engineUI.drawRecourses(uiInfo.recourseManager);
         engineUI.drawRenderStats((*uiInfo.context)->sceneManager.getCurrentScene() ,fps, &(*uiInfo.context)->ecs);

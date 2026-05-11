@@ -41,8 +41,54 @@ namespace EngineUtility{
         return true;
     }
 
+    AABB getWorldAABB(TransformComponent& t, AABB& local){
+      glm::vec3 halfExtents = (local.max - local.min) * 0.5f;
+      glm::vec3 center = local.center();
+
+      glm::mat3 rotScale = glm::mat3(t.rotation) * glm::mat3(glm::scale(glm::mat4(1.0f), t.scale));
+
+      glm::vec3 worldCenter = t.position + rotScale * center;
+
+      glm::vec3 worldHalfExtents =
+          glm::abs(rotScale[0]) * halfExtents.x +
+          glm::abs(rotScale[1]) * halfExtents.y +
+          glm::abs(rotScale[2]) * halfExtents.z;
+
+      AABB result;
+      result.min = worldCenter - worldHalfExtents;
+      result.max = worldCenter + worldHalfExtents;
+
+      return result;
+    }
+
+    AABB getWorldAABBWithoutComponent(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, 
+                                     AABB& local){
+      glm::vec3 halfExtents = (local.max - local.min) * 0.5f;
+      glm::vec3 center = local.center();
+
+      glm::mat3 rotScale = glm::mat3(rotation) * glm::mat3(glm::scale(glm::mat4(1.0f), scale));
+
+      glm::vec3 worldCenter = position + rotScale * center;
+
+      glm::vec3 worldHalfExtents =
+          glm::abs(rotScale[0]) * halfExtents.x +
+          glm::abs(rotScale[1]) * halfExtents.y +
+          glm::abs(rotScale[2]) * halfExtents.z;
+
+      AABB result;
+      result.min = worldCenter - worldHalfExtents;
+      result.max = worldCenter + worldHalfExtents;
+
+      return result;
+ 
+    }
+
     void initDebugSubSystems(){
         //Initialize any debug subsystems here in the future
+        Debugger::get().initDebugSystem("Engine");
+        Debugger::get().initDebugSystem("Scene_Manager");
+        Debugger::get().initDebugSystem("Context_Manager");
+        Debugger::get().initDebugSystem("ECS");
         Debugger::get().initDebugSystem("Renderer");
         Debugger::get().initDebugSystem("UI");
     }

@@ -55,29 +55,6 @@ namespace EngineInput{
 
         float closestDistance = FLT_MAX;
         const float MAX_DISTANCE = 100.0f;
-
-        for(auto& entity : (*context)->ecs.view<RenderableComponent, BoundingBoxComponent, MetadataComponent>()){
-            auto* boundingBox = (*context)->ecs.getComponent<BoundingBoxComponent>(entity);
-            auto* metadata = (*context)->ecs.getComponent<MetadataComponent>(entity);
-            auto* selected_metadata = (*context)->ecs.getComponent<MetadataComponent>(selectedEntity);
-           
-            float t;
-            glm::vec3 worldMin = boundingBox->worldBoundingBox.min;
-            glm::vec3 worldMax = boundingBox->worldBoundingBox.max;
-            if(rayIntersectsAABB(rayOrigin, rayDir, worldMin, worldMax, t)){
-                if(t < closestDistance && t > 0.0f && t < MAX_DISTANCE){
-                    closestDistance = t;
-
-                    if(selectedEntity != entity){
-                        if(selectedEntity != nullEntity){
-                            selected_metadata->selected = false;
-                        }
-                        selectedEntity = entity;
-                        metadata->selected = true;
-                    }
-                }
-            }
-        }
     }
 
     void Input::setCallBacks(){

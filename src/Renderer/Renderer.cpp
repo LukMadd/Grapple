@@ -1,11 +1,9 @@
 #include "Renderer/Renderer.hpp"
-#include "ECS/Components.hpp"
 #include "Renderer/Instance.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Misc/ObjectGlobals.hpp"
 #include "Renderer/RendererGlobals.hpp"
 #include "Renderer/ValidationLayers.hpp"
-#include "Spatial/Spatial_Partitioner.hpp"
 #include "ECS/EntityFunctions.hpp"
 #include <cstdint>
 
@@ -78,15 +76,6 @@ namespace EngineRenderer{
         uniformBufferCommand.createDescriptorPool(MAX_FRAMES_IN_FLIGHT, descriptorPool);
         appCommand.createCommandBuffers(commandbuffers, MAX_FRAMES_IN_FLIGHT);
         createSyncObjects();
-    }
-
-    void Renderer::initEntities(Scene &scene, EngineResource::ResourceManager &resourceManager, 
-                               EnginePartitioning::Spatial_Partitioner &spatialPartitioner, ECS* ecs){
-        for(auto& e : ecs->view<RenderableComponent>()){
-          EntityFunctions::initResources(e, resourceManager, &spatialPartitioner, ecs);
-        }
-
-        scene.areEntitiesInitialized = true;
     }
 
     void Renderer::createSceneDescriptorSets(Scene *scene, ECS* ecs){

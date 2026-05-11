@@ -1,6 +1,7 @@
 #include "ECS/Components.hpp"
 #include "ECS/EntityFunctions.hpp"
 #include "Spatial/Spatial_Partitioner.hpp"
+#include "EngineUtility.hpp"
 #include <cmath>
 #include <cstdint>
 
@@ -19,9 +20,12 @@ namespace EnginePartitioning{
     }
 
 
-    std::array<int, 6> getCellCoordinates(BoundingBoxComponent* boundingBox){
-        glm::vec3 worldMin = boundingBox->worldBoundingBox.min;
-        glm::vec3 worldMax = boundingBox->worldBoundingBox.max;
+    std::array<int, 6> getCellCoordinates(AABB& world){
+        glm::vec3 worldMin = world.min;
+        glm::vec3 worldMax = world.max;
+
+        worldMin = glm::min(worldMin, worldMax);
+        worldMax = glm::max(worldMin, worldMax);
 
         int minCellX = floor(worldMin.x / CELL_SIZE);
         int minCellY = floor(worldMin.y / CELL_SIZE);
@@ -42,8 +46,8 @@ namespace EnginePartitioning{
         return coords;
     }
 
-    [[nodiscard]] std::vector<Cell*> Spatial_Partitioner::getCellsFromAABB(BoundingBoxComponent* boundingBox){
-        std::array<int, 6> cellCoords = getCellCoordinates(boundingBox);
+    [[nodiscard]] std::vector<Cell*> Spatial_Partitioner::getCellsFromAABB(AABB& world){
+        std::array<int, 6> cellCoords = getCellCoordinates(world);
 
         std::vector<Cell*> cells;
 
@@ -79,14 +83,25 @@ namespace EnginePartitioning{
         spatial->assignedToCell = true;
     }
 
-    std::vector<uint64_t> Spatial_Partitioner::getCellKeys(Entity entity){
-        auto* boundingBox = current_context->ecs.getComponent<BoundingBoxComponent>(entity);
-        if(!boundingBox->localBoundingBox.isInitialized || !boundingBox->worldBoundingBox.isInitialized){
-            EntityFunctions::createBoundingBox(entity, &current_context->ecs);
+    std::vector<uint64_t> Spatial_Partitioner::getCellKeys(Entity entity, AABB* world){
+        AABB worldBoundingBox;
+        if(!world){
+          auto* boundingBox = current_context->ecs.getComponent<BoundingBoxComponent>(entity);
+          auto* transform = current_context->ecs.getComponent<TransformComponent>(entity);
+
+          if(!boundingBox->localBoundingBox.isInitialized){
+              EntityFunctions::createBoundingBox(entity, &current_context->ecs);
+          }
+
+          worldBoundingBox = EngineUtility::getWorldAABB(*transform, boundingBox->localBoundingBox);
+
+          
+        } else{
+          worldBoundingBox = *world;
         }
         std::vector<uint64_t> cellKeys;
 
-        std::array<int, 6> objectCellCoords = getCellCoordinates(boundingBox);
+        std::array<int, 6> objectCellCoords = getCellCoordinates(worldBoundingBox);
 
         for(int x = objectCellCoords[MIN_CELL_X_INDEX]; x <= objectCellCoords[MAX_CELL_X_INDEX]; x++){
             for(int y = objectCellCoords[MIN_CELL_Y_INDEX]; y <= objectCellCoords[MAX_CELL_Y_INDEX]; y++){

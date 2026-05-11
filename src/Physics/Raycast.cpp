@@ -1,6 +1,7 @@
 #include "Physics/Raycast.hpp"
 #include "ECS/Components.hpp"
 #include "Spatial/Spatial_Partitioner.hpp"
+#include "EngineUtility.hpp"
 #include <unordered_set>
 
 bool raycast(RayCastHit& hit, Ray ray, float maxDistance, Spatial_Partitioner* spatial_partitioner, ECS* ecs){
@@ -8,12 +9,12 @@ bool raycast(RayCastHit& hit, Ray ray, float maxDistance, Spatial_Partitioner* s
     hit.normal = glm::vec3(0.0f);
 
     glm::vec3 rayEnd = ray.origin + glm::normalize(ray.direction) * maxDistance;
-    BoundingBoxComponent rayAABB;
-    rayAABB.worldBoundingBox.min = glm::min(ray.origin, rayEnd);
-    rayAABB.worldBoundingBox.max = glm::max(ray.origin,rayEnd);
+    AABB rayAABB;
+    rayAABB.min = glm::min(ray.origin, rayEnd);
+    rayAABB.max = glm::max(ray.origin,rayEnd);
 
     std::unordered_set<Entity> possibleEntities;
-    std::vector<Cell*> cells = spatial_partitioner->getCellsFromAABB(&rayAABB);
+    std::vector<Cell*> cells = spatial_partitioner->getCellsFromAABB(rayAABB);
     for(auto& cell :cells){
         for(auto& entity : cell->entities){
             possibleEntities.insert(entity);
@@ -27,19 +28,22 @@ bool raycast(RayCastHit& hit, Ray ray, float maxDistance, Spatial_Partitioner* s
         if(!ecs->hasComponent<BoundingBoxComponent>(entity)) continue;
 
         auto* boundingBox = ecs->getComponent<BoundingBoxComponent>(entity);
+        auto* transform = ecs->getComponent<TransformComponent>(entity);
+
+        AABB worldBoundingBox = EngineUtility::getWorldAABB(*transform, boundingBox->localBoundingBox);
         
-        float tx1 = (boundingBox->worldBoundingBox.min.x - ray.origin.x) / ray.direction.x;
-        float tx2 = (boundingBox->worldBoundingBox.max.x - ray.origin.x) / ray.direction.x;
+        float tx1 = (worldBoundingBox.min.x - ray.origin.x) / ray.direction.x;
+        float tx2 = (worldBoundingBox.max.x - ray.origin.x) / ray.direction.x;
         float txMin = std::min(tx1, tx2);
         float txMax = std::max(tx1, tx2);
 
-        float ty1 = (boundingBox->worldBoundingBox.min.y - ray.origin.y) / ray.direction.y;
-        float ty2 = (boundingBox->worldBoundingBox.max.y - ray.origin.y) / ray.direction.y;
+        float ty1 = (worldBoundingBox.min.y - ray.origin.y) / ray.direction.y;
+        float ty2 = (worldBoundingBox.max.y - ray.origin.y) / ray.direction.y;
         float tyMin = std::min(ty1, ty2);
         float tyMax = std::max(ty1, ty2);
 
-        float tz1 = (boundingBox->worldBoundingBox.min.z - ray.origin.z) / ray.direction.z;
-        float tz2 = (boundingBox->worldBoundingBox.max.z - ray.origin.z) / ray.direction.z;
+        float tz1 = (worldBoundingBox.min.z - ray.origin.z) / ray.direction.z;
+        float tz2 = (worldBoundingBox.max.z - ray.origin.z) / ray.direction.z;
         float tzMin = std::min(tz1, tz2);
         float tzMax = std::max(tz1, tz2);
 

@@ -75,13 +75,6 @@ json serializeEntityData(const Entity e, ECS* ecs){
         };
         components.push_back(json_physics);
     }
-
-    if(ecs->hasComponent<BoundingBoxComponent>(e)){
-        auto* boundingBox = ecs->getComponent<BoundingBoxComponent>(e);
-        json json_bounding_box = json::object();
-        json_bounding_box["component_type"] = "bounding_box";
-        components.push_back(json_bounding_box);
-    }
     
     if(ecs->hasComponent<SpatialPartitioningComponent>(e)){
         json json_partitioning = json::object();
@@ -111,6 +104,14 @@ json serializeEntityData(const Entity e, ECS* ecs){
         json_metadata["type"] = metadata->type;
         components.push_back(json_metadata);
     }
+
+    if(ecs->hasComponent<BoundingBoxComponent>(e)){
+        auto* boundingBox = ecs->getComponent<BoundingBoxComponent>(e);
+        json json_bounding_box = json::object();
+        json_bounding_box["component_type"] = "bounding_box";
+        components.push_back(json_bounding_box);
+    }
+
 
     jsonData["components"] = components;
     

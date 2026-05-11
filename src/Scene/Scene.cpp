@@ -2,6 +2,8 @@
 #include "Debug/DebugRenderer.hpp"
 #include "ECS/Components.hpp"
 #include "ECS/ECS.hpp"
+#include "ECS/EntityFunctions.hpp"
+#include "EngineUtility.hpp"
 #include "Misc/Material.hpp"
 #include "Misc/UUID.hpp"
 #include "Scene/Player.hpp"
@@ -11,14 +13,16 @@
 #include <memory>
 
 namespace EngineScene{
-    Scene::Scene(const std::string &name, int index) : componentStorage(), name(name), index(index){};
+    Scene::Scene(const std::string &name, int index) : name(name), index(index){};
 
-    void Scene::initBaseScene(EngineResource::ResourceManager &resourceManager,ECS* ecs){
+    void Scene::initBaseScene(EngineResource::ResourceManager &resourceManager, EnginePartitioning::Spatial_Partitioner* spatial, 
+                              ECS* ecs){
         cameraManager.checkIfCamerasEmpty();
+       
         Entity floor = ecs->createEntity("Cube.obj", "", "Base_Scene_Floor", "");
         ecs->addComponents<RenderableComponent, BoundingBoxComponent, SceneNodeComponent, SpatialPartitioningComponent, PhysicsComponent>(floor);
-        auto* flloor_node = ecs->getComponent<SceneNodeComponent>(floor);
-        flloor_node->node = floor;
+        auto* floor_node = ecs->getComponent<SceneNodeComponent>(floor);
+        floor_node->node = floor;
         auto* floor_tranform = ecs->getComponent<TransformComponent>(floor);
         floor_tranform->position = glm::vec3(0,0, 0);
         floor_tranform->scale = glm::vec3(10.0f);
@@ -27,7 +31,7 @@ namespace EngineScene{
         floor_material->material->setBaseColor(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
         auto* floor_physics = ecs->getComponent<PhysicsComponent>(floor);
         floor_physics->isStatic = true;
-        EntityFunctions::scale(floor_tranform->scale, floor, ecs);
+        EntityFunctions::scale(floor_tranform->scale, floor, ecs, spatial);
 
         Entity cube = ecs->createEntity("Cube.obj", "", "Base_Scene_Cube", "");
         ecs->addComponents<RenderableComponent, BoundingBoxComponent, SceneNodeComponent, SpatialPartitioningComponent, PhysicsComponent>(cube);
@@ -43,10 +47,11 @@ namespace EngineScene{
 
     void Scene::addDefaultEntity(ECS* ecs){
         Entity object = ecs->getAvailableEntityID();
-        
-        ecs->addEntity(object);
+
         ecs->addComponents<MeshComponent, RenderableComponent, TransformComponent, BoundingBoxComponent, SceneNodeComponent, 
-                          SpatialPartitioningComponent, PhysicsComponent, MaterialComponent, MetadataComponent>(object);
+                           SpatialPartitioningComponent, PhysicsComponent, MaterialComponent, MetadataComponent>(object);
+        auto object_node = ecs->getComponent<SceneNodeComponent>(object);
+        object_node->node = object;
         auto object_mesh = ecs->getComponent<MeshComponent>(object);
         object_mesh->mesh->meshPath = "sphere.obj";
         auto object_transform = ecs->getComponent<TransformComponent>(object);
@@ -60,24 +65,33 @@ namespace EngineScene{
         auto object_metadata = ecs->getComponent<MetadataComponent>(object);
         object_metadata->name = "Default_Object";
         object_metadata->uuid = generateUUID();
+        auto object_physics = ecs->getComponent<PhysicsComponent>(object);
+        object_physics->isStatic = false;
 
-        newEntities.push_back(object);
+        simulationInitQueue.push_back(object);
+        renderInitQueue.push_back(object);
     }
 
     void Scene::removeEntity(Entity e, ECS* ecs){
-        auto newIt = std::find(newEntities.begin(), newEntities.end(), e);
-        if(newIt != newEntities.end()){
-            newEntities.erase(newIt);
+        auto simQueueIt = std::find(simulationInitQueue.begin(), simulationInitQueue.end(), e);
+        if(simQueueIt != simulationInitQueue.end()){
+            simulationInitQueue.erase(simQueueIt);
+        }
+
+        auto renderQueueIt = std::find(renderInitQueue.begin(), renderInitQueue.end(), e);
+        if(renderQueueIt != renderInitQueue.end()){
+          renderInitQueue.erase(renderQueueIt);
         }
         
         ecs->removeEntity(e);
     }
 
     void Scene::drawBoundingBoxes(DebugRenderer *debugRenderer, ECS* ecs){
-        ecs->foreach<RenderableComponent, BoundingBoxComponent>([&debugRenderer](RenderableComponent* r,BoundingBoxComponent* b){
-            if(b->worldBoundingBox.isInitialized){
-                debugRenderer->drawBoundingBox(b->worldBoundingBox);
-            }
+        ecs->foreach<RenderableComponent, BoundingBoxComponent, TransformComponent>([&debugRenderer](RenderableComponent* r, BoundingBoxComponent* b, TransformComponent* t){
+          if(b->localBoundingBox.isInitialized){
+            AABB worldBoundingBox = EngineUtility::getWorldAABB(*t, b->localBoundingBox);
+            debugRenderer->drawBoundingBox(worldBoundingBox);
+          }
         });
     }
 

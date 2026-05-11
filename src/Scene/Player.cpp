@@ -4,6 +4,8 @@
 #include "EngineGlobals.hpp"
 #include "Debug/Debugger.hpp"
 
+using namespace EnginePartitioning;
+
 Player3D::Player3D(std::shared_ptr<Camera> camera, ECS* ecs){
   if(!camera){
     DEBUGGER_LOG(WARNING, "No camera given to Player3D initializer", "Engine");
@@ -40,6 +42,6 @@ glm::vec3 Player3D::getPosition(){
   return transform->position;
 }
 
-void Player3D::move(glm::vec3 position, ECS* ecs) const{
-  EntityFunctions::move(position, entity, ecs); 
+void Player3D::move(glm::vec3 position, ECS* ecs, Spatial_Partitioner* spatial) const{
+  EntityFunctions::move(position, entity, ecs, spatial); 
 }

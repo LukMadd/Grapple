@@ -43,6 +43,7 @@ namespace EngineRenderer{
     private:
         DebugRenderer *debugRenderer;
 
+        //For debug renderering
         VertexBuffer vertexBuffer;
         IndexBuffer indexBuffer;
     };

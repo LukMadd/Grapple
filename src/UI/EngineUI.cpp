@@ -61,11 +61,13 @@ namespace EngineUI{
                 for(auto& entity : ecs->view<MetadataComponent>()){
                     ImGui::PushID(entity);
                     bool is_entity_selected = (selectedEntity == entity);
-                    auto* entity_metadata = ecs->getComponent<MetadataComponent>(entity);
+                    auto entity_metadata = ecs->getComponent<MetadataComponent>(entity);
                     if(ImGui::Selectable(entity_metadata->name.c_str(), is_entity_selected)){
-                        auto* selected_entity_metadata = ecs->getComponent<MetadataComponent>(selectedEntity);
-                        if(selectedEntity != nullEntity) selected_entity_metadata->selected = false;
-                        
+                        MetadataComponent* selected_entity_metadata;
+                        if(selectedEntity != nullEntity){
+                          selected_entity_metadata = ecs->getComponent<MetadataComponent>(selectedEntity);
+                          selected_entity_metadata->selected = false;
+                        }
                         selectedEntity = entity;
                         
                         selected_entity_metadata = ecs->getComponent<MetadataComponent>(entity);
@@ -110,7 +112,7 @@ namespace EngineUI{
         }
     }
 
-    void EngineUI::drawEntityInspector(EngineScene::Scene *scene, std::vector<Entity> &changedBoundingBoxes, ECS* ecs){
+    void EngineUI::drawEntityInspector(EngineScene::Scene *scene, ECS* ecs, EnginePartitioning::Spatial_Partitioner* spatial){
         if(m_showObjectInspector && selectedEntity || previousEntity != selectedEntity){
             previousEntity = selectedEntity;
             m_showObjectInspector = true;
@@ -119,6 +121,8 @@ namespace EngineUI{
             auto* transform = ecs->getComponent<TransformComponent>(selectedEntity);
 
             ImGui::Begin("Entity Inspector");
+
+            ImGui::Text("ID: %u", selectedEntity);
 
             if(metadata){
                 ImGui::Text("UUID: %s", metadata->uuid.c_str());
@@ -140,7 +144,7 @@ namespace EngineUI{
                     ImGui::InputFloat("Y: ", &positionY);
                     ImGui::InputFloat("Z: ", &positionZ);
                     if(glm::vec3(positionX, positionY, positionZ) != transform->position){
-                      EntityFunctions::move(glm::vec3(positionX, positionY, positionZ), selectedEntity, ecs);
+                      EntityFunctions::move(glm::vec3(positionX, positionY, positionZ), selectedEntity, ecs, spatial);
                     }
                     ImGui::TreePop();
                 }
@@ -156,7 +160,7 @@ namespace EngineUI{
                                                         transform->rotation.y,
                                                         transform->rotation.z);
                     if(glm::vec3(rotationX, rotationY, rotationZ) != currentRotation){
-                      EntityFunctions::rotate(glm::vec3(rotationX, rotationY, rotationZ), selectedEntity, ecs);
+                      EntityFunctions::rotate(glm::vec3(rotationX, rotationY, rotationZ), selectedEntity, ecs, spatial); 
                     }
                     ImGui::TreePop();
                 }
@@ -169,7 +173,7 @@ namespace EngineUI{
                     ImGui::InputFloat("Y: ", &scaleY);
                     ImGui::InputFloat("Z: ", &scaleZ);
                     if(glm::vec3(scaleX, scaleY, scaleZ) != transform->scale){
-                      EntityFunctions::scale(glm::vec3(scaleX, scaleY, scaleZ), selectedEntity, ecs);
+                      EntityFunctions::scale(glm::vec3(scaleX, scaleY, scaleZ), selectedEntity, ecs, spatial);
                     }
                     ImGui::TreePop();
                 }

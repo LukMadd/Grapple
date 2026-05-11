@@ -14,7 +14,7 @@ struct Player3D{
     TransformComponent* transform; //For easy position/rotation/scale getters
 
     glm::vec3 getPosition();
-    void move(glm::vec3 position, ECS* ecs) const;
+    void move(glm::vec3 position, ECS* ecs, EnginePartitioning::Spatial_Partitioner* spatial) const;
 
     bool isValid(){return valid;};
 

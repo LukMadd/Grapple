@@ -1,9 +1,11 @@
 #include "Input/InputBindings.hpp"
 #include "ECS/Components.hpp"
+#include "ECS/EntityFunctions.hpp"
 #include "Input/Action.hpp"
 #include "Renderer/Window.hpp"
 
 using namespace Engine;
+using namespace EnginePartitioning;
 
 namespace EngineInput {
 std::unordered_map<int, std::function<void()>>
@@ -92,7 +94,7 @@ InputBindings::getDeveloperBindings(Camera *camera, GLFWwindow *window,
 }
 
 std::unordered_map<int, std::function<void()>>
-InputBindings::getPlayerBindings3D(GLFWwindow *window, ActionManager *actionManager, ECS* ecs, Player3D& player){
+InputBindings::getPlayerBindings3D(GLFWwindow *window, ActionManager *actionManager, ECS* ecs, Spatial_Partitioner* spatial, Player3D& player){
   std::unordered_map<int, std::function<void()>> playerBindings;
   auto* playerTransform = ecs->getComponent<TransformComponent>(player.entity); 
 
@@ -108,20 +110,20 @@ InputBindings::getPlayerBindings3D(GLFWwindow *window, ActionManager *actionMana
     }
   };
 
-  auto player_move_forward = [ecs, player](){
-    player.move(player.transform->position + (glm::vec3(PlayerSettings::movement_speed) * player.camera->getFront()), ecs);
+  auto player_move_forward = [ecs, player, spatial](){
+    player.move(player.transform->position + (glm::vec3(PlayerSettings::movement_speed) * player.camera->getFront()), ecs, spatial);
   };
 
-  auto player_move_backward = [ecs, player](){
-    player.move(player.transform->position - (glm::vec3(PlayerSettings::movement_speed) * player.camera->getFront()), ecs);
+  auto player_move_backward = [ecs, player, spatial](){
+    player.move(player.transform->position - (glm::vec3(PlayerSettings::movement_speed) * player.camera->getFront()), ecs, spatial);
   };
 
-  auto player_move_left = [ecs, player](){
-    player.move(player.transform->position - (glm::vec3(PlayerSettings::movement_speed) * glm::normalize(glm::cross(player.camera->getFront(), player.camera->getUp()))), ecs); 
+  auto player_move_left = [ecs, player, spatial](){
+    player.move(player.transform->position - (glm::vec3(PlayerSettings::movement_speed) * glm::normalize(glm::cross(player.camera->getFront(), player.camera->getUp()))), ecs, spatial); 
   };
 
-  auto player_move_right = [ecs, player](){
-    player.move(player.transform->position + (glm::vec3(PlayerSettings::movement_speed) * glm::normalize(glm::cross(player.camera->getFront(), player.camera->getUp()))), ecs); 
+  auto player_move_right = [ecs, player, spatial](){
+    player.move(player.transform->position + (glm::vec3(PlayerSettings::movement_speed) * glm::normalize(glm::cross(player.camera->getFront(), player.camera->getUp()))), ecs, spatial); 
   };
 
   playerBindings[Player::EXIT_FULLSCREEN] = player_exit_fullscreen;

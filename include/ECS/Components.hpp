@@ -45,7 +45,6 @@ struct PhysicsComponent{
 
 struct BoundingBoxComponent{
     AABB localBoundingBox = AABB();
-    AABB worldBoundingBox = AABB();
 
     BoundingBoxComponent() = default;
 };

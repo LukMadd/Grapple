@@ -8,14 +8,13 @@
 #include <vector>
 #include "Components.hpp"
 #include "ComponentStorage.hpp"
-#include "Debug/Debugger.hpp"
 #include "EntityFunctions.hpp"
 
 #define DebugSystem "ECS";
 
 struct ECS{
     void addEntity(Entity e){
-        componentStorage->entities.push_back(e);
+      componentStorage->addEntity(e);
     }
 
     template<typename Component, typename... Args>
@@ -24,10 +23,7 @@ struct ECS{
     }
 
     void removeEntity(Entity e){
-        componentStorage->entities.erase(std::remove(componentStorage->entities.begin(), componentStorage->entities.end(), e), 
-                                                     componentStorage->entities.end());
-
-        componentStorage->removeEntity(e);
+      componentStorage->removeEntity(e);
     }
 
     template<typename... Components>
@@ -37,14 +33,10 @@ struct ECS{
 
     template<typename Component>
     Component* getComponent(Entity e){
-        auto& vec = componentStorage->component_map.get_components<Component>();
-        size_t indice = componentStorage->indices.get_component_indice<Component>(e);
-       
-        if(indice == std::numeric_limits<size_t>::max() || indice >= vec.size()){
-          DEBUGGER_LOG(CRITICAL, "Invalid indice!", "ECS");
-           return nullptr;
-        }
-        return &vec.at(indice);
+      if(e == std::numeric_limits<uint32_t>::max()){
+        throw std::runtime_error("Invalid entity");
+      }
+      return componentStorage->getComponent<Component>(e);
     }
 
     template<typename... Components>
@@ -54,8 +46,12 @@ struct ECS{
 
     template<typename Component>
     bool hasComponent(Entity e){
-        auto& indices = componentStorage->indices.get_component_indice_map<Component>();
-        return indices.find(e) != indices.end();
+      return componentStorage->hasComponent<Component>(e);
+    }
+
+    template<typename... Components>
+    bool hasComponents(Entity e){
+      return (... && hasComponent<Components>(e));
     }
 
     template<typename... Components>
@@ -63,11 +59,8 @@ struct ECS{
         if(!componentStorage){
           throw std::runtime_error("NO COMPONENT STORAGE!!!");
         }
-        if constexpr (sizeof...(Components) == 1) {
-            return componentStorage->entity_component_map.get_entities_of_type<Components...>();
-        } else {
-            return componentStorage->getEntitiesWith<Components...>();
-        }
+        
+        return componentStorage->getEntitiesWith<Components...>();
     }
 
     template<typename... Components, typename Func>
@@ -92,10 +85,9 @@ struct ECS{
     uint32_t getAvailableEntityID(){
         uint32_t entityID;
         if(!availableIDs.empty()){
-          entityID = availableIDs[0];
+          entityID = availableIDs.at(0);
         } else{
             entityID = componentStorage->nextEntity;
-            componentStorage->nextEntity++;
         }
         return entityID;
     }
@@ -116,9 +108,13 @@ struct ECS{
         return componentStorage->entities.size();
     }
 
+    std::vector<Entity> getAllEntities(){
+      return componentStorage->getAllEntities();
+    } 
+
     private:
         ComponentStorage* componentStorage = nullptr; //A bit dangerous but a pretty easy fix if it comes to it
-        std::vector<uint32_t> availableIDs;
+        std::vector<uint32_t> availableIDs{};
     };
 
 #endif

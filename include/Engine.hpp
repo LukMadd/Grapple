@@ -1,4 +1,5 @@
 #include "Core/ResourceManager.hpp"
+#include "Debug/Debugger.hpp"
 #include "Scene/SceneManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "Input/InputHandler.hpp"
@@ -8,7 +9,7 @@
 #include "UI/FPSManager.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Debug/DebugRenderer.hpp"
-#include "EngineContext.hpp"
+#include "Context/ContextManager.hpp"
 
 
 #include <GLFW/glfw3.h>
@@ -33,15 +34,16 @@ namespace Engine{
         void RendererMainLoop(float deltaTime);
 
         void SaveScenes(){
-            currentContext->sceneManager.saveScenes();
+            if(!contextManager.currentContext){
+              DEBUGGER_LOG(CRITICAL, "Invalid current context!", "Context_Manager");
+            }
+            contextManager.currentContext->sceneManager.saveScenes();
         }
 
         void mainLoop();
 
         void cleanup();
   
-        void switchContexts(EngineContext& newContext);
-
         private:
           GLFWwindow *window = nullptr;
           EngineRenderer::Renderer renderer;
@@ -54,12 +56,8 @@ namespace Engine{
           uint32_t currentSceneIndex = 0;
           size_t totalObjects;
 
-          EngineContext* currentContext = nullptr;
+          ContextManager contextManager;
 
-          EngineContext devContext;
-  
-          std::vector<EngineContext*> contexts = {&devContext}; //For looping over the engine contexts
-
-          bool hasContextChanged = false;
+          EngineContext devContext; //Base context
     };
 }

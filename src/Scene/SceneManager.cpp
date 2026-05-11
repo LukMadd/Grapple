@@ -25,7 +25,7 @@ namespace EngineScene{
     void SceneManager::addDefaultScene(){
         auto scene = Scene::createScene(currentID, "Default_Scene");
         ecs->setComponentStorage(&scene->componentStorage);
-        scene->initBaseScene(*resourceManager, ecs);
+        scene->initBaseScene(*resourceManager, spatialPartitioner, ecs);
         sceneOrder.push_back(currentID); //Pushes the scenes ID into sceneOrder to be used for current scene tracking
         scene->update(ecs);
         scenes[currentID] = std::move(scene);
@@ -90,7 +90,7 @@ namespace EngineScene{
         sceneData["cameras"] = json::array();
 
         //Loops through the scenes children and serializes them
-        for(auto& entity : scene.componentStorage.entities){
+        for(auto& entity : ecs->getAllEntities()){
             sceneData["entities"].push_back(serializeEntityData(entity, ecs));
         }
 
@@ -123,12 +123,13 @@ namespace EngineScene{
 
         for(auto &jsonObj : sceneData["entities"]){
             Entity e = deserializeEntity(jsonObj, ecs);
-            EntityFunctions::initResources(e, *resourceManager, spatialPartitioner, ecs);
+            EntityFunctions::initRenderResources(e, *resourceManager, ecs);
+            EntityFunctions::initSimulationResources(e, spatialPartitioner, ecs);
             if(ecs->hasComponent<TransformComponent>(e)){
                 auto* transform = ecs->getComponent<TransformComponent>(e);
-                EntityFunctions::move(transform->position, e, ecs);
-                EntityFunctions::rotate(glm::quat(transform->rotation[0], transform->rotation[1], transform->rotation[2], transform->rotation[3]), e, ecs);
-                EntityFunctions::scale(transform->scale, e, ecs);
+                EntityFunctions::move(transform->position, e, ecs, spatialPartitioner);
+                EntityFunctions::rotate(glm::quat(transform->rotation[0], transform->rotation[1], transform->rotation[2], transform->rotation[3]), e, ecs, spatialPartitioner);
+                EntityFunctions::scale(transform->scale, e, ecs, spatialPartitioner);
             }
             
         }

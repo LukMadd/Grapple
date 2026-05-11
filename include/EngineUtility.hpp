@@ -1,3 +1,4 @@
+#include "ECS/Components.hpp"
 #include <glm/glm.hpp>
 
 namespace EngineUtility{
@@ -8,6 +9,11 @@ namespace EngineUtility{
         const glm::vec3& boxMax,
         float& t
     );
+
+    AABB getWorldAABB(TransformComponent& t, AABB& local);
+    AABB getWorldAABBWithoutComponent(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale, 
+                                     AABB& local);
+
 
     void initDebugSubSystems();
 }

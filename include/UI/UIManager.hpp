@@ -1,8 +1,12 @@
+#ifndef _UI_MANAGER_HPP
+#define _UI_MANAGER_HPP
+
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
+#include "ECS/EntityFunctions.hpp"
 #include "EngineUI.hpp"
-#include "EngineContext.hpp"
+#include "Context/EngineContext.hpp"
 #include "Scene/SceneManager.hpp"
 #include "Camera/CameraManager.hpp"
 #include "Core/ResourceManager.hpp"
@@ -17,7 +21,7 @@ namespace EngineUI{
         VkRenderPass renderPass;
         EngineCamera::CameraManager *cameraManager;
         EngineResource::ResourceManager *recourseManager;
-        std::vector<Entity>* changedBoundingBoxes;
+        EnginePartitioning::Spatial_Partitioner* spatial;
         EngineContext** context = nullptr;
     };
 
@@ -42,7 +46,6 @@ namespace EngineUI{
                 UIInfo uiInfo;
 
                 float scale = 16.0f;
-
                 ImGuiStyle baseStyle;
             
             public:
@@ -51,4 +54,4 @@ namespace EngineUI{
     };
 }
 
-
+#endif

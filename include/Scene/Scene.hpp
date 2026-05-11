@@ -19,7 +19,8 @@ namespace EngineScene{
 
             int index;
             std::string name;
-            std::vector<Entity> newEntities;
+            std::vector<Entity> simulationInitQueue;
+            std::vector<Entity> renderInitQueue;
             std::vector<VkDescriptorSet> descriptorSets;
             ComponentStorage componentStorage;
             SceneNode sceneNode;
@@ -31,7 +32,7 @@ namespace EngineScene{
             bool selected = false;
 
             static std::unique_ptr<Scene> createScene(int id, const std::string &name);
-            void initBaseScene(EngineResource::ResourceManager &resourceManager, ECS *ecs);
+            void initBaseScene(EngineResource::ResourceManager &resourceManager, EnginePartitioning::Spatial_Partitioner* spatial, ECS *ecs);
 
             void addDefaultEntity(ECS* ecs);
 

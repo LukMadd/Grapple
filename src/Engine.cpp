@@ -1,5 +1,6 @@
 #include "Engine.hpp"
 #include "Camera/CameraManager.hpp"
+#include "ECS/Components.hpp"
 #include "Input/Input.hpp"
 #include "Input/InputBindings.hpp"
 #include "Renderer/Renderer.hpp"
@@ -10,6 +11,7 @@
 #include "Physics/Raycast.hpp"
 #include "EngineGlobals.hpp"
 #include "Spatial/Spatial_Partitioner.hpp"
+#include "Context/ContextManager.hpp"
 #include <algorithm>
 #include <filesystem>
 
@@ -18,32 +20,6 @@ using namespace EngineInput;
 namespace Engine{
     GrappleEngine::GrappleEngine() : renderer(){};
 
-    void GrappleEngine::switchContexts(EngineContext& newContext){
-      currentContext = &newContext;
-
-      spatialPartitioner.reset();
-      spatialPartitioner.init(&newContext);
-      if(newContext.isSetup == false){
-        newContext.sceneManager.init(resourceManager, &spatialPartitioner, &newContext.ecs);
-
-        for(auto &scene : newContext.sceneManager.getScenes()){
-            renderer.initEntities(*scene, resourceManager, spatialPartitioner, &newContext.ecs);
-        }
-
-        renderer.createSceneDescriptorSets(newContext.sceneManager.getCurrentScene(), &newContext.ecs);
-
-        newContext.isSetup = true;
-      }
-
-      if(std::binary_search(contexts.begin(), contexts.end(), &newContext) == false){
-        contexts.push_back(&newContext);
-      }
-
-      uiManager.setCameraManager(&newContext.sceneManager.getCurrentScene()->cameraManager);
-
-      hasContextChanged = true;
-    }
-
     void GrappleEngine::init(){
       std::filesystem::create_directories(GRAPPLE_SCENE_DIR); //Creates scenes directory if not present
 
@@ -51,7 +27,7 @@ namespace Engine{
 
       renderer.initVulkan();
 
-      spatialPartitioner.init(currentContext);
+      spatialPartitioner.init(contextManager.currentContext);
 
       VkPhysicalDeviceProperties deviceProperties;
       vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
@@ -67,7 +43,9 @@ namespace Engine{
       renderer.initObjectResources(resourceManager);
   
       devContext.name = "Developer";
-      switchContexts(devContext);
+      contextManager.init(&spatialPartitioner, &inputHandler, &renderer, &uiManager, &resourceManager);
+      contextManager.switchContexts(devContext);
+      contextManager.primaryContext = &devContext;
 
       window = renderer.window;
 
@@ -85,17 +63,17 @@ namespace Engine{
       uiInfo.instance = renderer.getInstance();
       uiInfo.pipelineCache = nullptr;
       uiInfo.renderPass = renderer.getRenderPass();
-      uiInfo.cameraManager = &currentContext->sceneManager.getScenes()[0]->cameraManager;
+      uiInfo.cameraManager = &contextManager.currentContext->sceneManager.getScenes()[0]->cameraManager;
       uiInfo.recourseManager = &resourceManager;
-      uiInfo.changedBoundingBoxes = &physicsEngine.getChangedBoundingBoxes();
-      uiInfo.context = &currentContext;
+      uiInfo.spatial = &spatialPartitioner;
+      uiInfo.context = &contextManager.currentContext;
 
       uiManager.initImGui(uiInfo);
 
-      Input::get().init(window, &currentContext);
+      Input::get().init(window, &contextManager.currentContext);
       Input::get().setCallBacks();
       actionManager.setupDeveloperBindings();
-      physicsEngine.init(&spatialPartitioner, &currentContext);
+      physicsEngine.init(&spatialPartitioner, &contextManager.currentContext);
 
       renderer.giveDebugRenderer(&debugRenderer);
     }
@@ -103,11 +81,40 @@ namespace Engine{
     //Small extra checks to ensure everything is up-to-date without cluttering main function
     void GrappleEngine::MainLoopExtraChecks(){
         //Updates the binding if the camera has changed
-        if(currentContext->sceneManager.getCurrentScene()->cameraManager.hasCameraChanged || hasContextChanged){
-            auto bindings = InputBindings::getDeveloperBindings(currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera().get(), 
+        if(contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.hasCameraChanged || contextManager.hasContextChanged){
+            auto bindings = InputBindings::getDeveloperBindings(contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera().get(), 
                                                                  renderer.window, &actionManager);
             inputHandler.setBindings(bindings);
         }
+
+        if(contextManager.currentContext->sceneManager.getCurrentScene()->areDescriptorSetsInitialized == false){
+          renderer.createSceneDescriptorSets(contextManager.currentContext->sceneManager.getCurrentScene(), &contextManager.currentContext->ecs);
+        }
+
+        if(contextManager.currentContext->sceneManager.getCurrentScene()->areEntitiesInitialized == false){
+          for(auto& e : contextManager.currentContext->ecs.view<RenderableComponent>()){
+            EntityFunctions::initRenderResources(e, resourceManager, &contextManager.currentContext->ecs);
+            EntityFunctions::initSimulationResources(e, &spatialPartitioner, &contextManager.currentContext->ecs);
+          }
+
+          renderer.createSceneDescriptorSets(contextManager.currentContext->sceneManager.getCurrentScene(), &contextManager.currentContext->ecs);
+          contextManager.currentContext->sceneManager.getCurrentScene()->areEntitiesInitialized = true;          
+        }
+
+        while(contextManager.currentContext->sceneManager.getCurrentScene()->renderInitQueue.empty() == false){
+            auto entity = contextManager.currentContext->sceneManager.getCurrentScene()->renderInitQueue.back();
+            EntityFunctions::initRenderResources(entity, resourceManager, &contextManager.currentContext->ecs);
+
+            contextManager.currentContext->sceneManager.getCurrentScene()->renderInitQueue.pop_back();
+        }    
+
+         while(contextManager.currentContext->sceneManager.getCurrentScene()->simulationInitQueue.empty() == false){
+          auto entity = contextManager.currentContext->sceneManager.getCurrentScene()->simulationInitQueue.back();
+          EntityFunctions::initSimulationResources(entity, &spatialPartitioner, &contextManager.currentContext->ecs);
+          contextManager.currentContext->sceneManager.getCurrentScene()->simulationInitQueue.pop_back();
+        }    
+
+
     }
 
     void GrappleEngine::RendererMainLoop(float deltaTime){
@@ -115,11 +122,11 @@ namespace Engine{
         drawCallCountLastFrame = drawCallCount;
         drawCallCount = 0;
 
-        Input::get().inputCamera = currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera().get();
+        Input::get().inputCamera = contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera().get();
 
-        currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->giveExtent(renderer.getSwapChainExtent());
+        contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->giveExtent(renderer.getSwapChainExtent());
 
-        currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->updateCamera(deltaTime, actionManager);
+        contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->updateCamera(deltaTime, actionManager);
 
         static float rawFps = 0.0f;
         static float smoothFPS = 0.0f;
@@ -128,52 +135,35 @@ namespace Engine{
         }
 
         Input::get().selectedEntity = uiManager.getSelectedEntity();
-        Input::get().inputScene = currentContext->sceneManager.getCurrentScene();
+        Input::get().inputScene = contextManager.currentContext->sceneManager.getCurrentScene();
 
         uiManager.renderUI(smoothFPS);
 
-        if(currentContext->sceneManager.getCurrentScene()->areEntitiesInitialized == false){
-            renderer.initEntities(*currentContext->sceneManager.getCurrentScene(), resourceManager, spatialPartitioner, &currentContext->ecs);
-            renderer.createSceneDescriptorSets(currentContext->sceneManager.getCurrentScene(), &currentContext->ecs);
-        }
-
-        if(currentContext->sceneManager.getCurrentScene()->newEntities.empty() == false){
-            while(currentContext->sceneManager.getCurrentScene()->newEntities.empty() == false){
-                auto entity = currentContext->sceneManager.getCurrentScene()->newEntities.back();
-                EntityFunctions::initResources(entity, resourceManager, &spatialPartitioner, &currentContext->ecs);
-                currentContext->sceneManager.getCurrentScene()->newEntities.pop_back();
-            }    
-        }
-
-        if(currentContext->sceneManager.getCurrentScene()->areDescriptorSetsInitialized == false){
-            renderer.createSceneDescriptorSets(currentContext->sceneManager.getCurrentScene(), &currentContext->ecs);
-        }
-
         EngineRenderer::UniformBufferObject ubo{};
-        ubo.view = currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->getViewMatrix();
+        ubo.view = contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->getViewMatrix();
         if(!lights.getDirectionalLights().empty()){
             const auto& directionalLight = lights.getDirectionalLights()[0];
             ubo.lightDir = glm::vec4(glm::normalize(directionalLight.direction), 0.0f);
             ubo.lightColorIntensity = glm::vec4(directionalLight.color, directionalLight.intensity);
         }
 
-        ubo.proj = currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->getProjection();
-        ubo.cameraPos = glm::vec4(currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->position, 0.0f); //Updates the camera position
-        renderer.updateUniformBuffers(ubo, currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->getFov()); //Sends the uniform buffer object down to the uniform buffer manager for it to be processed
+        ubo.proj = contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->getProjection();
+        ubo.cameraPos = glm::vec4(contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->position, 0.0f); //Updates the camera position
+        renderer.updateUniformBuffers(ubo, contextManager.currentContext->sceneManager.getCurrentScene()->cameraManager.getCurrentCamera()->getFov()); //Sends the uniform buffer object down to the uniform buffer manager for it to be processed
         
         auto* mappedBuffer = reinterpret_cast<ObjectUBO*>(renderer.getObjectUniformBuffersMapped()[renderer.getCurrentFrame()]);
 
         uint32_t i = 0;
-        for(auto entity : currentContext->ecs.view<RenderableComponent, MaterialComponent>()){
-            auto* entity_material = currentContext->ecs.getComponent<MaterialComponent>(entity);
-            auto* entity_renderable = currentContext->ecs.getComponent<RenderableComponent>(entity);
+        for(auto entity : contextManager.currentContext->ecs.view<RenderableComponent, MaterialComponent>()){
+            auto* entity_material = contextManager.currentContext->ecs.getComponent<MaterialComponent>(entity);
+            auto* entity_renderable = contextManager.currentContext->ecs.getComponent<RenderableComponent>(entity);
 
             ObjectUBO objectUbo{};
             objectUbo.hasTexture = entity_material->material->getTextures().empty() ? 0 : 1;
-            objectUbo.baseColor  = entity_material->material->getBaseColor();
+            objectUbo.baseColor = entity_material->material->getBaseColor();
             int index = 0;
             if(!entity_material->material->getTextures().empty()){
-                auto sceneTextures = currentContext->sceneManager.getCurrentScene()->getSceneTextures(&currentContext->ecs);
+                auto sceneTextures = contextManager.currentContext->sceneManager.getCurrentScene()->getSceneTextures(&contextManager.currentContext->ecs);
                 auto it = std::find(sceneTextures.begin(), sceneTextures.end(), entity_material->material->getTextures()[0]);
                 if(it != sceneTextures.end()){
                     index = static_cast<int>(std::distance(sceneTextures.begin(), it));
@@ -191,57 +181,51 @@ namespace Engine{
         }
 
         if(uiManager.shouldDrawBoundingBoxes()){
-            currentContext->sceneManager.getCurrentScene()->drawBoundingBoxes(&debugRenderer, &currentContext->ecs);
+            contextManager.currentContext->sceneManager.getCurrentScene()->drawBoundingBoxes(&debugRenderer, &contextManager.currentContext->ecs);
         }
 
         FrameFlags frameFlags{};
         frameFlags.shouldDrawBoundingBoxes = uiManager.shouldDrawBoundingBoxes();
 
-        renderer.drawFrame(currentContext->sceneManager.getCurrentScene(), &currentContext->ecs, frameFlags);
+        renderer.drawFrame(contextManager.currentContext->sceneManager.getCurrentScene(), &contextManager.currentContext->ecs, frameFlags);
         rawFps = renderer.getGpuFPS();
     }
 
     void GrappleEngine::mainLoop(){
         auto lastTime = std::chrono::high_resolution_clock::now();
 
+        float accumulator = 0.0f;
         while(!glfwWindowShouldClose(window)){            
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
-            lastTime = currentTime;
+          auto currentTime = std::chrono::high_resolution_clock::now();
+          float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
+          lastTime = currentTime;
 
-            MainLoopExtraChecks();
+          float physicsStep = physicsEngine.getTickRate();
 
-            inputHandler.update(window, actionManager, currentContext->sceneManager);
+          contextManager.currentContext->sceneManager.getCurrentScene()->update(&contextManager.currentContext->ecs); //Updates the current frame's children with it's matrix and so forth
 
-            float accumulator;
+          MainLoopExtraChecks();
 
-            float physicsStep = physicsEngine.getTickRate();
+          inputHandler.update(window, actionManager, contextManager.currentContext->sceneManager);
 
-            currentContext->sceneManager.getCurrentScene()->update(&currentContext->ecs); //Updates the current frame's children with it's matrix and so forth
-
-            accumulator+=deltaTime;
-            while(accumulator >= physicsStep){
-                physicsEngine.tick(physicsStep);
-                accumulator-=physicsEngine.getTickRate();
-            }
-            
-            RendererMainLoop(deltaTime); 
+          accumulator+=deltaTime;
+          while(accumulator >= physicsStep){
+              physicsEngine.tick(physicsStep);
+              accumulator-=physicsEngine.getTickRate();
+          }
+          
+          RendererMainLoop(deltaTime); 
         }
         vkDeviceWaitIdle(EngineRenderer::device);
     }
 
     void GrappleEngine::cleanup(){
         vkDeviceWaitIdle(device);
-        for(auto& context : contexts){
-          if(!context->isSetup) continue;
-          context->sceneManager.saveScenes(); //Serializes all the scenes loaded
-          for(auto &scene :  context->sceneManager.getScenes()){
-              scene->cleanupEntities();
-          }
-        }
         resourceManager.cleanup(device);
         defaultResources.cleanupDefault(); //Destroys the default recourses
         uiManager.shutDownImGui(imguiPool);
         renderer.cleanup();
+        contextManager.serialize();
+        contextManager.cleanup();
     }
 }

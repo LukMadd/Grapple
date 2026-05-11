@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "ECS/Components.hpp"
-#include "EngineContext.hpp"
+#include "Context/EngineContext.hpp"
 
 constexpr int CELL_SIZE = 10;
 
@@ -30,11 +30,11 @@ namespace EnginePartitioning{
 
             void updateEntityCells(Entity entity);
 
-            std::vector<uint64_t> getCellKeys(Entity entity);
+            std::vector<uint64_t> getCellKeys(Entity entity, AABB* world = nullptr);
 
             std::vector<Cell*> getCells(Entity entity);
 
-            std::vector<Cell*> getCellsFromAABB(BoundingBoxComponent* boundingBox);
+            std::vector<Cell*> getCellsFromAABB(AABB& world);
 
             void reRegisterEntity(Entity entity, std::vector<uint64_t> &cellKeys);
 

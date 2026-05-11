@@ -1,6 +1,10 @@
+#ifndef _ENGINE_UI_HPP
+#define _ENGINE_UI_HPP
+
 #include "Camera/Camera.hpp"
 #include "Core/ResourceManager.hpp"
 #include "ECS/Components.hpp"
+#include "ECS/EntityFunctions.hpp"
 #include "Scene/Scene.hpp"
 
 #include "Scene/SceneManager.hpp"
@@ -13,7 +17,7 @@ namespace EngineUI{
 
             void drawSceneHierarchy(EngineScene::Scene *scene, ECS* ecs);
 
-            void drawEntityInspector(EngineScene::Scene *scene, std::vector<Entity> &changedBoundingBoxes, ECS* ecs);
+            void drawEntityInspector(EngineScene::Scene *scene, ECS* ecs, EnginePartitioning::Spatial_Partitioner* spatial);
 
             void drawCameraInspector();
 
@@ -52,3 +56,5 @@ namespace EngineUI{
             void setSelectedCamera(EngineCamera::Camera *camera){selectedCamera = camera;}
     };
 }
+
+#endif

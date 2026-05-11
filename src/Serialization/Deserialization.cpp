@@ -2,6 +2,7 @@
 #include "ECS/EntityFunctions.hpp"
 #include "Misc/Material.hpp"
 #include "Serialization/Serialization.hpp"
+#include <iostream>
 
 
 Entity deserializeEntity(const nlohmann::json& jsonData, ECS* ecs){
@@ -52,13 +53,6 @@ Entity deserializeEntity(const nlohmann::json& jsonData, ECS* ecs){
                 physics->velocity = glm::vec3(component["velocity"][0], component["velocity"][1], component["velocity"][2]);
             }
 
-            else if(component["component_type"] == "bounding_box"){
-                auto* bounding_box = ecs->addComponent<BoundingBoxComponent>(entity);
-                if(ecs->hasComponent<MeshComponent>(entity)){
-                  EntityFunctions::createBoundingBox(entity, ecs);
-                }
-            }
-
             else if(component["component_type"] == "spatial_partitioning"){
                 auto* spatial_partioner = ecs->addComponent<SpatialPartitioningComponent>(entity);
             }
@@ -83,6 +77,14 @@ Entity deserializeEntity(const nlohmann::json& jsonData, ECS* ecs){
                 transform->rotation = glm::quat(json_transform["rotation"][3], json_transform["rotation"][0], json_transform["rotation"][1], json_transform["rotation"][2]); //w,x,y,z
                 transform->scale = glm::vec3(json_transform["scale"][0], json_transform["scale"][1], json_transform["scale"][2]);
             }
+
+            else if(component["component_type"] == "bounding_box"){
+                auto* bounding_box = ecs->addComponent<BoundingBoxComponent>(entity);
+                if(ecs->hasComponent<MeshComponent>(entity)){
+                  EntityFunctions::createBoundingBox(entity, ecs);
+                }
+            }
+
         }
     }
 

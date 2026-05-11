@@ -1,17 +1,21 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "ECS/Components.hpp"
-#include "EngineContext.hpp"
-#include "Physics/Collision.hpp"
+#include "Context/EngineContext.hpp"
+#include "Physics/Swept.hpp"
+#include "EngineUtility.hpp"
 #include <cassert>
+#include <unordered_map>
 #include <unordered_set>
 
 struct PairHash {
     template <class T1, class T2>
     std::size_t operator()(const std::pair<T1, T2>& p) const noexcept {
-        auto h1 = std::hash<T1>{}(p.first);
-        auto h2 = std::hash<T2>{}(p.second);
-        return h1 ^ (h2 << 1);
-    }
+        auto a = std::min(p.first, p.second);
+        auto b = std::max(p.first, p.second);
+
+        size_t h1 = std::hash<Entity>{}(a);
+        size_t h2 = std::hash<Entity>{}(b);
+        return h1 ^ (h2 << 1);}
 };
 
 using namespace EnginePartitioning;
@@ -26,61 +30,90 @@ namespace EnginePhysics{
     void PhysicsEngine::tick(float deltaTime){
         tickCount++;
 
-        std::unordered_set<std::pair<std::string, std::string>, PairHash> checkedPairs;
-        for(auto& changedBoundingBox : changedBoundingBoxes){
-            spatialPartitioner->updateEntityCells(changedBoundingBox);
+        std::unordered_set<std::pair<Entity, Entity>, PairHash> checkedPairs;
+        std::unordered_map<Entity, AABB> worldBoxes;
+        std::unordered_map<Entity, glm::vec3> finalPositions;
+
+        float epsilon = 0.0000001f;
+
+        for(auto e : (*context)->ecs.view<TransformComponent, BoundingBoxComponent, PhysicsComponent, SpatialPartitioningComponent>()){
+          auto* t = (*context)->ecs.getComponent<TransformComponent>(e);
+          auto* b = (*context)->ecs.getComponent<BoundingBoxComponent>(e);
+
+          worldBoxes[e] = EngineUtility::getWorldAABB(*t, b->localBoundingBox);
         }
 
         for(auto entity : (*context)->ecs.view<TransformComponent, BoundingBoxComponent, PhysicsComponent, SpatialPartitioningComponent>()){
-            auto* transform = (*context)->ecs.getComponent<TransformComponent>(entity);
-            auto* boundingBox = (*context)->ecs.getComponent<BoundingBoxComponent>(entity);
-            auto* physics = (*context)->ecs.getComponent<PhysicsComponent>(entity);
-            auto* spatial = (*context)->ecs.getComponent<SpatialPartitioningComponent>(entity);
-            auto* metadata = (*context)->ecs.getComponent<MetadataComponent>(entity);
+          auto* transform = (*context)->ecs.getComponent<TransformComponent>(entity);
+          auto* boundingBox = (*context)->ecs.getComponent<BoundingBoxComponent>(entity);
+          auto* physics = (*context)->ecs.getComponent<PhysicsComponent>(entity);
 
-            if(!physics->isStatic){
-                //Applies gravity
-                physics->velocity += (gravity * deltaTime) / 10.0f;
-                if(physics->velocity.y >= 10.0f){
-                    physics->velocity.y = 10.0f;
+          if (physics->isStatic) continue;
+
+          glm::vec3 velocity = physics->velocity;
+
+          if(!physics->isStatic){
+            velocity += (gravity * deltaTime);
+          }
+
+          glm::vec3 startingPosition = transform->position;
+
+          glm::vec3 position = startingPosition;
+
+          float remainingTime = 1.0f;
+
+          //Multiple collision passes to handle colliding with multiple objects in one frame
+          for(int i = 0; i < 4; i++){
+            float bestT = 1.0f;
+            glm::vec3 bestNormal(0.0f);
+            bool hitSomething = false;
+
+            glm::vec3 step = velocity * deltaTime;
+            step *= remainingTime; 
+
+            AABB testBox = EngineUtility::getWorldAABBWithoutComponent(position, transform->rotation, transform->scale, boundingBox->localBoundingBox);
+
+            for(auto cell : spatialPartitioner->getCells(entity)){
+              for(auto other : cell->entities){
+                if(other == entity) continue;
+
+                if((*context)->ecs.hasComponents<TransformComponent, BoundingBoxComponent>(other) == false) continue;
+
+                AABB otherBox = worldBoxes[other];
+
+                SweepResult sweep = sweepAABB(testBox, step, otherBox);
+
+                if(!sweep.hit) continue;
+
+                if(sweep.hit && sweep.t < bestT){
+                  bestT = sweep.t;
+                  bestNormal = sweep.normal;
+                  hitSomething = true;
                 }
+              }
             }
-            glm::vec3 movement = physics->isStatic ? glm::vec3(0.0f) : physics->velocity * deltaTime;
-            glm::vec3 newPos = transform->position;
+            //move to impact or full step
+            position += step * bestT;
 
-            AABB predictedBox = boundingBox->worldBoundingBox;
-            predictedBox.min += movement;
-            predictedBox.max += movement;
+            if(!hitSomething){
+              break;
+            }
 
-            glm::vec3 currentMins = {boundingBox->worldBoundingBox.min.x, boundingBox->worldBoundingBox.min.y, boundingBox->worldBoundingBox.min.z};
-            glm::vec3 currentMaxes = {boundingBox->worldBoundingBox.max.x, boundingBox->worldBoundingBox.max.y, boundingBox->worldBoundingBox.max.z};
+            position += bestNormal * epsilon; 
 
-            std::vector<Cell*> cells = spatialPartitioner->getCells(entity);
-            for(int i = 0; i < cells.size(); i++){
-                for(auto other : cells[i]->entities){
+            if(bestNormal.x != 0.0f) velocity.x = 0.0f;
+            if(bestNormal.y != 0.0f) velocity.y = 0.0f;
+            if(bestNormal.z != 0.0f) velocity.z = 0.0f;
 
-                    if(entity == other) continue;
-                                        
-                    BoundingBoxComponent otherBoundingBox = *(*context)->ecs.getComponent<BoundingBoxComponent>(other);
+            remainingTime *= (1.0f - bestT);
+          }
 
-                    std::pair<std::string, std::string> dirKey{metadata->uuid, (*context)->ecs.getComponent<MetadataComponent>(other)->uuid};
-                    if(!checkedPairs.insert(dirKey).second) continue;
-
-                    float epsilon = 0.0000001f;
-
-                    int collisionDirection = getCollisionDirection(predictedBox, otherBoundingBox.worldBoundingBox, currentMins, currentMaxes);
-                    if(collisionDirection != OBJECT_COLLISION_NONE){
-                        handleCollision(predictedBox, otherBoundingBox.worldBoundingBox, physics->velocity, 
-                                      movement, currentMins, currentMaxes, collisionDirection, epsilon);
-                    } else{
-                    }
-
-                }
-            } 
-        newPos += glm::vec3(movement.x, movement.y, movement.z);
-        if(newPos != transform->position && !physics->isStatic){
-          EntityFunctions::move(newPos, entity, &(*context)->ecs);
+          physics->velocity = velocity;
+          finalPositions[entity] = position;
         }
+
+        for(auto &[entity, position] : finalPositions){
+          EntityFunctions::move(position, entity, &(*context)->ecs, spatialPartitioner);
         }
     }
 }

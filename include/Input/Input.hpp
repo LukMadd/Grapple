@@ -3,7 +3,7 @@
 
 #include "Camera/Camera.hpp"
 
-#include "EngineContext.hpp"
+#include "Context/EngineContext.hpp"
 #include "Scene/Scene.hpp"
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>

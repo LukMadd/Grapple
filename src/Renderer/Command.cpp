@@ -14,6 +14,9 @@ namespace EngineRenderer{
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipelineManager.pipelines["DEBUG_PIPELINE"]);
 
         debugRenderer->setupLines(vertexBuffer, indexBuffer, camera->getViewMatrix(), camera->getFront());
+        if(vertexBuffer.buffer == VK_NULL_HANDLE){
+          return;
+        }
 
         VkDeviceSize offsets[] = {0};
 

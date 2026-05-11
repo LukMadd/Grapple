@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <memory>
 
-//Forward declaration to prevent circular reference errors from EngineContext.hpp including Spatial_Partitioner.hpp
+//Forward declaration to prevent circular reference errors from Context/EngineContext.hpp including Spatial_Partitioner.hpp
 //and Spatial_Partitioner.hpp including SceneManager.hpp
 namespace EnginePartitioning{
   class Spatial_Partitioner;

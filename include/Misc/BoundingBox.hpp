@@ -9,6 +9,10 @@ struct AABB{
 
     bool isInitialized = false;
 
+    glm::vec3 center() const {
+      return (min + max) * 0.5f;
+    }
+
     AABB()
     : min(FLT_MAX, FLT_MAX, FLT_MAX),
         max(-FLT_MAX, -FLT_MAX, -FLT_MAX),
