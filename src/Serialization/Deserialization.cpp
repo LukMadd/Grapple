@@ -2,7 +2,6 @@
 #include "ECS/EntityFunctions.hpp"
 #include "Misc/Material.hpp"
 #include "Serialization/Serialization.hpp"
-#include <iostream>
 
 
 Entity deserializeEntity(const nlohmann::json& jsonData, ECS* ecs){

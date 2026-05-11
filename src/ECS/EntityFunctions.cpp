@@ -7,8 +7,6 @@
 #include "Misc/UUID.hpp"
 #include "ECS/ECS.hpp"
 #include "EngineGlobals.hpp"
-#include <iostream>
-#include <ostream>
 
 #define SUB_SYSTEM "Entity_Functions"
 
@@ -129,7 +127,7 @@ namespace EntityFunctions{
           entity_AABB->localBoundingBox.min = glm::min(entity_AABB->localBoundingBox.min, v.pos);
           entity_AABB->localBoundingBox.max = glm::max(entity_AABB->localBoundingBox.max, v.pos);
       }
-      
+
       entity_AABB->localBoundingBox.isInitialized = true;
   }
 
